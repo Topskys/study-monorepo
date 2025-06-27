@@ -1,0 +1,18 @@
+{
+  "name": "monmorepo",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "dev": "pnpm -r dev",
+    "start": "pnpm -r start",
+    "build": "pnpm run build -F nest-demo",
+    "clean": "rm -rf node_modules **/*/node_modules",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "packageManager": "pnpm@10.12.4",
+  "preinstall": "npx only-allow pnpm"
+}
