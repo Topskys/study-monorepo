@@ -14,5 +14,17 @@
   "author": "",
   "license": "ISC",
   "packageManager": "pnpm@10.12.4",
-  "preinstall": "npx only-allow pnpm"
+  "preinstall": "npx only-allow pnpm",
+  "dependencies": {
+    "@vitejs/plugin-vue-jsx": "^5.0.0",
+    "axios": "^1.10.0",
+    "element-plus": "^2.10.2",
+    "svgo": "^4.0.0",
+    "vite-plugin-vue-svg": "^0.1.0",
+    "vite-svg-loader": "^5.1.0"
+  },
+  "devDependencies": {
+    "lint-staged": "^16.1.2",
+    "prettier": "^3.6.2"
+  }
 }
