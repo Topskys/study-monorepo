@@ -76,8 +76,25 @@ function performUnitOfWork(fiber) {
     updateDom(fiber.dom, prevProps, fiber.props)
   }
 
+  //  遍历子节点
   const elements = fiber.props.children
   reconcileChildren(fiber, elements)
+
+  if (fiber.child) {
+    return fiber.child
+  }
+
+  let nextFiber = fiber
+  while (nextFiber) {
+    if (nextFiber.sibling) {
+      // 存在兄弟节点，则返回兄弟节点
+      return nextFiber.sibling
+    }
+    // 不存在兄弟节点，则返回父节点的兄弟节点
+    nextFiber = nextFiber.parent
+  }
+
+  return null
 }
 
 /**
@@ -128,4 +145,34 @@ function render(element, container) {
   }
   deletions = []
   nextUnitOfWork = wipRoot
+}
+
+/**
+ * 构建子节点fiber树和实现diff算法
+ *
+ * @param fiber 父节点Fiber对象
+ * @param children 子节点数组
+ */
+function reconcileChildren(fiber, children) {
+  let index = 0
+  let prevSibling = null
+  while (index < children.length) {
+    const child = children[index]
+    const newFiber = {
+      type: child.type,
+      props: child.props,
+      parent: fiber,
+      dom: null,
+    }
+
+    if (index === 0) {
+      // 第一个子节点，则设置为父节点的子节点
+      fiber.child = newFiber
+    } else if (element) {
+      // 否则设置为上一个兄弟节点的兄弟节点
+      prevSibling.sibling = newFiber
+    }
+    prevSibling = newFiber
+    index++
+  }
 }
