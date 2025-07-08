@@ -148,7 +148,7 @@ function render(element, container) {
 }
 
 /**
- * 构建子节点fiber树和实现diff算法
+ * 构建子节点fiber树和diff算法
  *
  * @param fiber 父节点Fiber对象
  * @param children 子节点数组
@@ -156,13 +156,35 @@ function render(element, container) {
 function reconcileChildren(fiber, children) {
   let index = 0
   let prevSibling = null
+  let oldFiber = fiber.alternate && fiber.alternate.child // 旧的Fiber树的第一个子节点
+
   while (index < children.length) {
     const child = children[index]
-    const newFiber = {
-      type: child.type,
-      props: child.props,
-      parent: fiber,
-      dom: null,
+    // DIFF（复用，新增，删除）
+    let newFiber = null
+    // 复用
+    if (child.type === oldFiber?.type) {
+      newFiber = {
+        type: child.type,
+        props: child.props,
+        dom: oldFiber.dom,
+        parent: fiber,
+        alternate: oldFiber, // 关联旧节点
+        effectTag: 'UPDATE',
+      }
+    }
+    // 新增节点
+    if (child.type !== oldFiber.type) {
+      newFiber = createFiber(child, fiber)
+      newFiber.effectTag = 'PLACEMENT'
+    }
+    // 删除节点
+    if (oldFiber && child.type !== oldFiber.type) {
+      deletions.push(oldFiber)
+    }
+
+    if (oldFiber) {
+      oldFiber = oldFiber.sibling // 移动到下一个兄弟节点
     }
 
     if (index === 0) {
@@ -174,5 +196,14 @@ function reconcileChildren(fiber, children) {
     }
     prevSibling = newFiber
     index++
+  }
+}
+
+function createFiber(dom, fiber) {
+  return {
+    dom,
+    parent: fiber.parent,
+    alternate: fiber.alternate,
+    effectTag: 'PLACEMENT',
   }
 }
