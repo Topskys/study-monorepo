@@ -27,13 +27,6 @@ const React = {
       },
     }
   },
-  createRoot(selector) {
-    this.container = document.querySelector(selector)
-    return this
-  },
-  render(dom) {
-    this.container.appendChild(dom)
-  },
 }
 
 // Text Element
@@ -63,22 +56,32 @@ function workLoop(deadline) {
     nextUnitOfWork = performUnitOfWork(nextUnitOfWork)
     shouldYield = deadline.timeRemaining() < 1
   }
+
+  // diff结束提交渲染
+  if (!nextUnitOfWork && wipRoot) {
+    commitRoot()
+  }
+
   // 否则放到下一帧（16.6666...）执行
-  requestIdleCallback(workLoop)
+  requestIdleCallback(workLoop) // 实际不用改函数执行，而是基于postMessage实现
 }
 
 requestIdleCallback(workLoop)
 
-// 接收一个单元并返回一个新的单元
+/**
+ * 执行单个工作单元（fiber）
+ *
+ * @param fiber 工作单元（fiber）对象
+ * @returns 返回下一个需要执行的工作单元（fiber）对象或null
+ */
 function performUnitOfWork(fiber) {
   if (!fiber.dom) {
     fiber.dom = createDom(fiber)
-    updateDom(fiber.dom, prevProps, fiber.props)
+    updateDom(fiber.dom, {}, fiber.props)
   }
 
   //  遍历子节点
-  const elements = fiber.props.children
-  reconcileChildren(fiber, elements)
+  reconcileChildren(fiber, fiber.props.children)
 
   if (fiber.child) {
     return fiber.child
@@ -120,16 +123,57 @@ function createDom(fiber) {
  * @param {Object} nextProps 更新后的属性对象
  */
 function updateDom(dom, prevProps, nextProps) {
-  // example: <div id="foo" /> -> <div id="bar" />
-  if (dom && dom.firstChild) {
-    updateDom(dom.firstChild, prevProps.children[0], nextProps.children[0])
-  } else if (prevProps.children && nextProps.children) {
-    updateDom(dom, prevProps.children[0], nextProps.children[0])
-  }
+  const isEvent = (key) => key.startsWith('on')
+  const isProperty = (key) => key !== 'children' && !isEvent(key)
+  const isNew = (prev, next) => (key) => prev[key] !== next[key]
+  const isGone = (prev, next) => (key) => !(key in next)
+
+  // 移除旧的或者改变了的事件监听器
+  Object.keys(prevProps)
+    .filter(isEvent)
+    .filter((key) => !(key in nextProps) || isNew(prevProps, nextProps)(key))
+    .forEach((name) => {
+      const eventType = name.toLowerCase().substring(2)
+      dom.removeEventListener(eventType, prevProps[name])
+    })
+
+  // 移除旧的属性
+  Object.keys(prevProps)
+    .filter(isProperty)
+    .filter(isGone(prevProps, nextProps))
+    .forEach((name) => {
+      dom[name] = ''
+    })
+
+  // 设置新的或者改变了的属性
+  Object.keys(nextProps)
+    .filter(isProperty)
+    .filter(isNew(prevProps, nextProps))
+    .forEach((name) => {
+      // 处理特殊属性
+      if (name === 'className') {
+        dom.className = nextProps[name]
+      } else if (name === 'style') {
+        // 处理style对象
+        Object.assign(dom.style, nextProps[name])
+      } else {
+        dom[name] = nextProps[name]
+      }
+    })
+
+  // 添加新的事件监听器
+  Object.keys(nextProps)
+    .filter(isEvent)
+    .filter(isNew(prevProps, nextProps))
+    .forEach((name) => {
+      const eventType = name.toLowerCase().substring(2)
+      dom.addEventListener(eventType, nextProps[name])
+    })
 }
 
 /**
  * 将指定的React元素渲染到指定的DOM容器中。
+ * 初始化fiber所有数据
  *
  * @param element 要渲染的React元素
  * @param container DOM容器元素
@@ -158,15 +202,17 @@ function reconcileChildren(fiber, children) {
   let prevSibling = null
   let oldFiber = fiber.alternate && fiber.alternate.child // 旧的Fiber树的第一个子节点
 
-  while (index < children.length) {
-    const child = children[index]
+  while (index < children.length || oldFiber !== null) {
+    const element = children[index]
     // DIFF（复用，新增，删除）
     let newFiber = null
+    const sameType = element && oldFiber && element.type === oldFiber.type
     // 复用
-    if (child.type === oldFiber?.type) {
+    if (sameType) {
+      console.log('🚀 ~ reconcileelementren ~ UPDATE:', element)
       newFiber = {
-        type: child.type,
-        props: child.props,
+        type: element.type,
+        props: element.props, // 更新props
         dom: oldFiber.dom,
         parent: fiber,
         alternate: oldFiber, // 关联旧节点
@@ -174,12 +220,15 @@ function reconcileChildren(fiber, children) {
       }
     }
     // 新增节点
-    if (child.type !== oldFiber.type) {
-      newFiber = createFiber(child, fiber)
+    if (element && !sameType) {
+      console.log('🚀 ~ reconcileelementren ~ PLACEMENT:', fiber)
+      newFiber = createFiber(element, fiber)
       newFiber.effectTag = 'PLACEMENT'
     }
     // 删除节点
-    if (oldFiber && child.type !== oldFiber.type) {
+    if (oldFiber && !sameType) {
+      console.log('🚀 ~ reconcileelementren ~ DELETION:', oldFiber)
+      oldFiber.effectTag = 'DELETION'
       deletions.push(oldFiber)
     }
 
@@ -199,11 +248,93 @@ function reconcileChildren(fiber, children) {
   }
 }
 
-function createFiber(dom, fiber) {
+/**
+ * 创建一个 Fiber 节点
+ *
+ * @param element 元素对象
+ * @param parent 父 Fiber 节点
+ * @returns 返回创建的 Fiber 节点
+ */
+function createFiber(element, parent) {
   return {
-    dom,
-    parent: fiber.parent,
-    alternate: fiber.alternate,
-    effectTag: 'PLACEMENT',
+    type: element.type,
+    props: element.props,
+    parent: parent,
+    dom: null,
+    child: null,
+    sibling: null,
+    alternate: null,
+    effectTag: null,
   }
 }
+
+/**
+ * 提交根节点
+ *
+ * 将所有删除操作提交到DOM中，并提交工作单元（work unit）到DOM，
+ * 然后将当前根节点设置为工作单元根节点，并将工作单元根节点重置为空，
+ * 以回归原始状态。
+ */
+function commitRoot() {
+  deletions.forEach(commitWork)
+  commitWork(wipRoot.child)
+  currentRoot = wipRoot
+  wipRoot = null // 回归原始状态
+}
+
+/**
+ * 提交工作单元
+ *
+ * @param {Fiber} fiber - 当前工作单元
+ */
+function commitWork(fiber) {
+  if (!fiber) {
+    return
+  }
+
+  const parentDom = fiber.parent.dom
+  console.log('🚀 ~ commitWork ~ parentDom:', parentDom, fiber)
+  if (fiber.effectTag === 'PLACEMENT' && fiber.dom != null) {
+    parentDom.appendChild(fiber.dom)
+  } else if (fiber.effectTag === 'UPDATE' && fiber.dom != null) {
+    updateDom(fiber.dom, fiber.alternate.props, fiber.props)
+  } else if (fiber.effectTag === 'DELETION') {
+    parentDom.removeChild(fiber.dom)
+  }
+
+  commitWork(fiber.child)
+  commitWork(fiber.sibling)
+}
+
+// TEST
+// 第一次渲染
+render(
+  React.createElement(
+    'div',
+    { id: 'container', className: 'box', style: { color: 'red' } },
+    React.createElement('a', { href: 'http://' }, 'link'),
+    React.createElement('h1', { title: 'hello' }, 'Hello World'),
+  ),
+  document.getElementById('app'),
+)
+
+// 稍后更新props
+setTimeout(() => {
+  render(
+    React.createElement(
+      'div',
+      {
+        id: 'container',
+        className: 'new-box',
+        style: { color: 'blue', fontSize: '20px' },
+      },
+      React.createElement('a', { href: 'http://', title: 'a-link' }, 'a-link'),
+      React.createElement(
+        'h1',
+        { title: 'updated', onClick: () => alert('clicked') },
+        'Updated!',
+      ),
+    ),
+    document.getElementById('app'),
+  )
+}, 2000)
