@@ -8,7 +8,10 @@
     "start": "pnpm -r start",
     "build": "pnpm run build -F nest-demo",
     "clean": "rm -rf node_modules **/*/node_modules",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "docs:dev": "vitepress dev docs",
+    "docs:build": "vitepress build docs",
+    "docs:preview": "vitepress preview docs"
   },
   "keywords": [],
   "author": "",
@@ -26,6 +29,7 @@
   },
   "devDependencies": {
     "lint-staged": "^16.1.2",
-    "prettier": "^3.6.2"
+    "prettier": "^3.6.2",
+    "vitepress": "^1.6.3"
   }
 }
