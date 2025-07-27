@@ -1,7 +1,10 @@
 import { defineConfig } from 'vitepress'
 
+const base = '/study-monorepo/'
+
 // https://vitepress.dev/reference/site-config
 export default defineConfig({
+  base,
   title: "My Awesome Project",
   description: "A VitePress Site",
   themeConfig: {
