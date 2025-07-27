@@ -1,7 +1,9 @@
 <script setup lang="tsx">
+import { ref } from 'vue';
 import HelloWorld from './components/HelloWorld.vue'
 import SvgIcon from './components/SvgIcon.tsx'
 import SvgIcon2 from './components/SvgIcon.vue'
+import Test from './pages/test.vue';
 
 // import Star from 'shared/icons/send.svg?component'
 // import Rose from 'shared/icons/rose.svg?component'
@@ -25,6 +27,7 @@ import SvgIcon2 from './components/SvgIcon.vue'
 //   </el-icon>
 // }
 
+const showTest = ref(true);
 </script>
 
 <template>
@@ -50,6 +53,10 @@ import SvgIcon2 from './components/SvgIcon.vue'
     </a>
   </div>
   <HelloWorld msg="Vite + Vue" />
+
+  <el-button @click="showTest = !showTest">toggle</el-button>
+
+  <Test v-show="showTest"/>
 </template>
 
 <style scoped>

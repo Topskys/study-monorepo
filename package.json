@@ -1,5 +1,5 @@
 {
-  "name": "monmorepo",
+  "name": "monorepo",
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
@@ -19,6 +19,7 @@
     "@vitejs/plugin-vue-jsx": "^5.0.0",
     "axios": "^1.10.0",
     "element-plus": "^2.10.2",
+    "pkg": "^5.8.1",
     "svgo": "^4.0.0",
     "vite-plugin-vue-svg": "^0.1.0",
     "vite-svg-loader": "^5.1.0"
